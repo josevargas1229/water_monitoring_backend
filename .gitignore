@@ -1,0 +1,8 @@
+media/
+datasets/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+models/
