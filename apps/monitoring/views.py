@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Ecosystem, Images
 from .serializers import EcosystemSerializer, ImagesSerializer
-from .utils import calculate_ndvi, detect_water_and_vegetation, calculate_turbidity, analyze_biodiversity, train_cnn_model, adjust_image
+from .utils import calculate_ndvi, detect_water_and_vegetation, calculate_turbidity, load_unet_model, analyze_biodiversity, train_unet_model, adjust_image, process_db_images_with_model
 from apps.alerts.models import Alert
 from rest_framework import status
 
@@ -20,24 +20,24 @@ class ImagesViewSet(viewsets.ModelViewSet):
         image = serializer.save()
         resolution = image.metadata.get('resolution_m_per_px', 0.1)
         det = detect_water_and_vegetation(image.image.path, resolution)
-        ndvi = calculate_ndvi(image.image.path)
-        turbidity = calculate_turbidity(image.image.path)
+        # ndvi = calculate_ndvi(image.image.path)
+        # turbidity = calculate_turbidity(image.image.path)
         bio_analysis = analyze_biodiversity(image.image.path)
-        image.ndvi_score = ndvi
-        image.turbidity = turbidity
+        # image.ndvi_score = ndvi
+        # image.turbidity = turbidity
         image.vegetation_percentage = det['vegetation_percentage']
         image.vegetation_area_m2 = det['vegetation_area_m2']
         image.water_percentage = det['water_percentage']
         image.water_area_m2 = det['water_area_m2']
         image.biodiversity_analysis = bio_analysis
         image.save()
-        if image.water_percentage < 50 or (ndvi is not None and ndvi < 0.3):
-            Alert.objects.create(
-                ecosystem=image.ecosystem,
-                type='sequia',
-                details={'ndvi': ndvi, 'water_percentage': image.water_percentage},
-                confidence=0.85
-            )
+        # if image.water_percentage < 50 or (ndvi is not None and ndvi < 0.3):
+        #     Alert.objects.create(
+        #         ecosystem=image.ecosystem,
+        #         type='sequia',
+        #         details={'ndvi': ndvi, 'water_percentage': image.water_percentage},
+        #         confidence=0.85
+        #     )
     
     @action(detail=False, methods=['get'], url_path='by-ecosystem/(?P<ecosystem_id>\d+)')
     def by_ecosystem(self, request, ecosystem_id=None):
@@ -75,21 +75,21 @@ class ImagesViewSet(viewsets.ModelViewSet):
         # Recalcular métricas
         resolution = image.metadata.get('resolution_m_per_px', 0.1)
         det = detect_water_and_vegetation(adjusted_path, resolution)
-        ndvi = calculate_ndvi(adjusted_path)
-        turbidity = calculate_turbidity(adjusted_path)
-        bio_analysis = analyze_biodiversity(adjusted_path)
+        # ndvi = calculate_ndvi(adjusted_path)
+        # turbidity = calculate_turbidity(adjusted_path)
+        # bio_analysis = analyze_biodiversity(adjusted_path)
 
 
         return Response({
             'message': 'Análisis recalculado con ajustes',
             'adjusted_metrics': {
-                'ndvi_score': float(ndvi) if ndvi is not None else None,
-                'turbidity': float(turbidity),
+                # 'ndvi_score': float(ndvi) if ndvi is not None else None,
+                # 'turbidity': float(turbidity),
                 'vegetation_percentage': float(det['vegetation_percentage']),
                 'vegetation_area_m2': float(det['vegetation_area_m2']),
                 'water_percentage': float(det['water_percentage']),
                 'water_area_m2': float(det['water_area_m2']),
-                'biodiversity_analysis': bio_analysis
+                # 'biodiversity_analysis': bio_analysis
             }
         }, status=status.HTTP_200_OK)
         
@@ -114,7 +114,12 @@ class ImagesViewSet(viewsets.ModelViewSet):
                 name=ecosystem_name,
                 location=None  # agregar logica para ubicación posteriormente
             )
-
+        model = load_unet_model()
+        if model is None:
+            return Response(
+                {'error': 'No se pudo cargar el modelo UNet'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         responses = []
         for i, image in enumerate(images):
             description = descriptions[i] if i < len(descriptions) else ''
@@ -125,26 +130,27 @@ class ImagesViewSet(viewsets.ModelViewSet):
                 metadata={'resolution_m_per_px': 0.1}  # Ajustar según el drone
             )
             drone_image.save()
+            
             resolution = drone_image.metadata.get('resolution_m_per_px', 0.1)
-            det = detect_water_and_vegetation(drone_image.image.path, resolution)
-            ndvi = calculate_ndvi(drone_image.image.path)
-            turbidity = calculate_turbidity(drone_image.image.path)
-            bio_analysis = analyze_biodiversity(drone_image.image.path)
-            drone_image.ndvi_score = ndvi
-            drone_image.turbidity = turbidity
+            det = detect_water_and_vegetation(drone_image.image.path, model=model, resolution_m_per_px=resolution)
+            # ndvi = calculate_ndvi(drone_image.image.path)
+            # turbidity = calculate_turbidity(drone_image.image.path)
+            # bio_analysis = analyze_biodiversity(drone_image.image.path)
+            # drone_image.ndvi_score = ndvi
+            # drone_image.turbidity = turbidity
             drone_image.vegetation_percentage = det['vegetation_percentage']
             drone_image.vegetation_area_m2 = det['vegetation_area_m2']
             drone_image.water_percentage = det['water_percentage']
             drone_image.water_area_m2 = det['water_area_m2']
-            drone_image.biodiversity_analysis = bio_analysis
+            # drone_image.biodiversity_analysis = bio_analysis
             drone_image.save()
-            if drone_image.water_percentage < 50 or (ndvi is not None and ndvi < 0.3):
-                Alert.objects.create(
-                    ecosystem=drone_image.ecosystem,
-                    type='sequia',
-                    details={'ndvi': ndvi, 'water_percentage': drone_image.water_percentage},
-                    confidence=0.85
-                )
+            # if drone_image.water_percentage < 50 or (ndvi is not None and ndvi < 0.3):
+            #     Alert.objects.create(
+            #         ecosystem=drone_image.ecosystem,
+            #         type='sequia',
+            #         details={ 'water_percentage': drone_image.water_percentage},
+            #         confidence=0.85
+            #     )
             responses.append({
                 'id': drone_image.id,
                 'image': drone_image.image.url,
@@ -153,7 +159,7 @@ class ImagesViewSet(viewsets.ModelViewSet):
                 'water_area_m2': drone_image.water_area_m2,
                 'vegetation_percentage': drone_image.vegetation_percentage,
                 'vegetation_area_m2': drone_image.vegetation_area_m2,
-                'turbidity': drone_image.turbidity
+                # 'turbidity': drone_image.turbidity
             })
 
         return Response({
@@ -165,7 +171,56 @@ class ImagesViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='train-model')
     def train_model(self, request):
-        model = train_cnn_model()
+        model = train_unet_model()
         if model:
             return Response({'message': 'Modelo entrenado exitosamente'}, status=status.HTTP_200_OK)
         return Response({'error': 'Fallo al entrenar el modelo'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=False, methods=['post'], url_path='train-and-process-db')
+    def train_and_process_db(self, request):
+        # Luego, procesar imágenes en BD con el modelo entrenado
+        process_db_images_with_model()
+        return Response({'message': 'Modelo entrenado y base de datos procesada exitosamente'}, status=status.HTTP_200_OK)
+
+    def process_db_images_with_model(model=None):
+        try:
+            # Usar el modelo proporcionado o cargar uno si no se pasa
+            if model is None:
+                model = load_unet_model()
+                if model is None:
+                    print("No se pudo cargar el modelo UNet")
+                    return
+            
+            # Obtener todas las imágenes de la BD
+            drone_images = Images.objects.all()
+            print(f"Procesando {len(drone_images)} imágenes de la base de datos con el modelo entrenado")
+            
+            for img_obj in drone_images:
+                print(f"Procesando imagen: {img_obj.image.path}")
+                
+                # Calcular detección de agua y vegetación
+                resolution = img_obj.metadata.get('resolution_m_per_px', 0.1)
+                det = detect_water_and_vegetation(img_obj.image.path, model=model, resolution_m_per_px=resolution)
+                
+                # Calcular turbidez
+                # turbidity = calculate_turbidity(img_obj.image.path, model=model)
+                
+                # Calcular NDVI y biodiversidad
+                # ndvi = calculate_ndvi(img_obj.image.path)
+                # biodiversity = analyze_biodiversity(img_obj.image.path)
+                
+                # Actualizar el objeto en la BD
+                img_obj.water_percentage = det['water_percentage']
+                img_obj.water_area_m2 = det['water_area_m2']
+                img_obj.vegetation_percentage = det['vegetation_percentage']
+                img_obj.vegetation_area_m2 = det['vegetation_area_m2']
+                # img_obj.turbidity = turbidity
+                # if ndvi is not None:
+                #     img_obj.ndvi = ndvi
+                # if biodiversity:
+                #     img_obj.biodiversity = biodiversity
+                img_obj.save()
+            
+            print("✅ Procesamiento completado para todas las imágenes en la BD")
+        except Exception as e:
+            print(f"Error en process_db_images_with_model: {e}")

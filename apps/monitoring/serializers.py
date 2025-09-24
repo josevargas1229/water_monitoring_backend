@@ -11,4 +11,15 @@ class ImagesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Images
-        fields = ['id', 'ecosystem', 'image', 'description', 'metadata', 'capture_date', 'ndvi_score', 'water_detection', 'biodiversity_analysis']
+        fields = [
+            'id',
+            'ecosystem',
+            'image',
+            'description',
+            'metadata',
+            'capture_date',
+            'vegetation_percentage',
+            'vegetation_area_m2',
+            'water_percentage', 
+            'water_area_m2',
+        ]
