@@ -1,0 +1,52 @@
+name: Django CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        python-version: [3.7, 3.8, 3.9]
+
+    steps:
+      # 1. Descarga el código del repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Configura la clave SSH para acceder al VPS
+      - name: Configurar SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      # 3. Copia el código al VPS (excluye cosas innecesarias)
+      - name: Copiar archivos al VPS
+        run: |
+          rsync -avz \
+            --exclude 'venv' \
+            --exclude '__pycache__' \
+            ./ root@72.60.127.75:/var/www/water-monitoring
+
+      # 4. Instala dependencias y aplica migraciones en el VPS
+      - name: Ejecutar comandos en el VPS
+        run: |
+          ssh root@72.60.127.75 << 'EOF'
+            cd /var/www/water-monitoring
+            # Activar el entorno virtual
+            source venv/bin/activate
+            # Instalar dependencias
+            pip install -r requirements.txt
+            # Migraciones y archivos estáticos
+            python manage.py migrate --noinput
+            python manage.py collectstatic --noinput
+            # Reiniciar Gunicorn y Nginx
+            sudo systemctl restart gunicorn
+            sudo systemctl restart nginx
+          EOF
