@@ -26,12 +26,10 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
 
-      # 3. Copia el código al VPS (excluye cosas innecesarias)
+      # 3. Copia el código al VPS
       - name: Copiar archivos al VPS
         run: |
           rsync -avz \
-            --exclude 'venv' \
-            --exclude '__pycache__' \
             ./ root@72.60.127.75:/var/www/water-monitoring
 
       # 4. Instala dependencias y aplica migraciones en el VPS
