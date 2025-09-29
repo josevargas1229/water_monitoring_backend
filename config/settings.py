@@ -147,4 +147,4 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 if platform.system() == "Windows":
     GDAL_LIBRARY_PATH = r"C:\GDAL\bin\gdal.dll"
 else:
-    GDAL_LIBRARY_PATH = "/usr/lib/libgdal.so"
+    GDAL_LIBRARY_PATH = "/lib/x86_64-linux-gnu/libgdal.so"
