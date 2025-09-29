@@ -37,14 +37,12 @@ jmespath==1.0.1
 joblib==1.5.2
 jsonschema==4.25.1
 jsonschema-specifications==2025.4.1
-keras==3.11.3
 kombu==5.5.4
 libclang==18.1.1
 Markdown==3.8.2
 markdown-it-py==4.0.0
 MarkupSafe==3.0.2
 mdurl==0.1.2
-ml-dtypes==0.4.1
 mpmath==1.3.0
 namex==0.1.0
 networkx==3.4.2
@@ -75,8 +73,6 @@ segmentation_models_pytorch==0.5.0
 six==1.17.0
 sqlparse==0.5.3
 sympy==1.14.0
-tensorboard==2.17.1
-tensorboard-data-server==0.7.2
 tensorflow==2.15.1
 tensorflow-io-gcs-filesystem==0.31.0
 tensorflow_keras==0.1
@@ -93,6 +89,6 @@ urllib3==2.5.0
 vine==5.1.0
 wcwidth==0.2.13
 Werkzeug==3.1.3
-wrapt==1.17.3
+
 
 
