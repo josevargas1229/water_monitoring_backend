@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import platform
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -143,4 +144,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-GDAL_LIBRARY_PATH = r'C:\GDAL\bin\gdal.dll'
+if platform.system() == "Windows":
+    GDAL_LIBRARY_PATH = r"C:\GDAL\bin\gdal.dll"
+else:
+    GDAL_LIBRARY_PATH = "/usr/lib/libgdal.so"
