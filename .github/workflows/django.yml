@@ -31,13 +31,14 @@ jobs:
       - name: Copiar archivos al VPS
         run: |
           rsync -avz \
-            ./ root@72.60.127.75:/var/www/water-monitoring
+            ./ root@72.60.127.75:/var/www/water_monitoring
 
       # 4. Instala dependencias y aplica migraciones en el VPS
       - name: Ejecutar comandos en el VPS
         run: |
           ssh root@72.60.127.75 << 'EOF'
-            cd /var/www/water-monitoring
+            echo "" 
+            cd /var/www/water_monitoring
             # Activar el entorno virtual
             source venv/bin/activate
             # Instalar dependencias

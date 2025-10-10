@@ -572,10 +572,9 @@ def adjust_image(image_path, brightness=0, contrast=1.0, saturation=1.0, sepia=0
             white = np.full_like(img, 255)
             img = cv2.addWeighted(img, opacity, white, 1 - opacity, 0)
 
-        # Guardar temporal
-        temp_path = image_path + '_adjusted.jpg'
-        cv2.imwrite(temp_path, img)
-        return temp_path
+        # Codificar la imagen ajustada a bytes (formato JPEG)
+        _, buffer = cv2.imencode('.jpg', img)
+        return buffer.tobytes()
     except Exception as e:
         print(f"Error en adjust_image: {e}")
         return None
