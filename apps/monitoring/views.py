@@ -1,4 +1,4 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Ecosystem, Images
@@ -8,7 +8,9 @@ from apps.alerts.models import Alert
 from rest_framework import status
 from django.contrib.gis.geos import Polygon
 from django.core.files.base import ContentFile
-
+from django.db.models import DateField
+from django.db.models.functions import TruncDate
+import json
 class EcosystemViewSet(viewsets.ModelViewSet):
     queryset = Ecosystem.objects.all()
     serializer_class = EcosystemSerializer
@@ -93,6 +95,45 @@ class ImagesViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': f'Error al recuperar imágenes: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=False, methods=['get'], url_path='capture-dates/(?P<ecosystem_id>\d+)')
+    def capture_dates(self, request, ecosystem_id=None):
+        """
+        Recupera las fechas distintas de captura de imágenes asociadas a un ecosistema específico.
+
+        Args:
+            request: Objeto de solicitud HTTP.
+            ecosystem_id (int, opcional): ID del ecosistema para filtrar imágenes.
+
+        Query Parameters:
+            include_adjusted (bool, opcional): Si es 'true', incluye imágenes ajustadas; de lo contrario, solo originales (predeterminado: 'false').
+
+        Returns:
+            Response: Respuesta HTTP con una lista de fechas distintas en formato YYYY-MM-DD.
+
+        Raises:
+            Exception: Para errores inesperados durante la ejecución.
+        """
+        try:
+            queryset = Images.objects.filter(ecosystem_id=ecosystem_id)
+            
+            # Por defecto, solo originales; si ?include_adjusted=true, incluir ajustadas
+            include_adjusted = request.query_params.get('include_adjusted', 'false').lower() == 'true'
+            if not include_adjusted:
+                queryset = queryset.filter(is_adjusted=False)
+            
+            if not queryset.exists():
+                return Response({'message': 'No se encontraron imágenes para este ecosistema con los filtros aplicados'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Obtener fechas distintas truncando capture_date a nivel de día
+            dates = queryset.annotate(date=TruncDate('capture_date', output_field=DateField())).values('date').distinct()
+            
+            # Convertir las fechas a formato de cadena YYYY-MM-DD y eliminar duplicados
+            date_list = sorted({date['date'].strftime('%Y-%m-%d') for date in dates}, reverse=True)
+            
+            return Response({'capture_dates': date_list}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': f'Error al recuperar fechas de captura: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
     @action(detail=False, methods=['post'], url_path='adjust-and-analyze/(?P<image_id>\d+)')
     def adjust_and_analyze(self, request, image_id):
@@ -240,6 +281,7 @@ class ImagesViewSet(viewsets.ModelViewSet):
             location = None
             if coordinates:
                 try:
+                    coordinates = json.loads(coordinates)
                     # Convertir las coordenadas en un objeto Polygon
                     location = Polygon(coordinates)
                 except (ValueError, TypeError):

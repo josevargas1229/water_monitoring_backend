@@ -37,15 +37,16 @@ jobs:
       - name: Ejecutar comandos en el VPS
         run: |
           ssh root@72.60.127.75 << 'EOF'
-            echo "" 
+            
             cd /var/www/water_monitoring
             # Activar el entorno virtual
             source venv/bin/activate
             # Instalar dependencias
             pip install -r requirements.txt
             # Migraciones y archivos estáticos
-            python manage.py migrate --noinput
-            python manage.py collectstatic --noinput
+            python manage.py makemigrations
+            python manage.py migrate
+            python manage.py collectstatic
             # Reiniciar Gunicorn y Nginx
             sudo systemctl restart gunicorn
             sudo systemctl restart nginx
